@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           first_name TEXT,
           last_name TEXT,
           company TEXT,
-          email TEXT NOT NULL,
+          email TEXT,
           phone TEXT,
           source TEXT,
           status TEXT,
@@ -65,8 +65,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
       `;
 
-      // Defensive: add missing columns in case production schema drifts
-      await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS industry TEXT`;
+      // Defensive: add all missing columns in case leads table already has a different schema
+      const schemaFixes = [
+        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS first_name TEXT`,
+        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_name TEXT`,
+        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS company TEXT`,
+        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS email TEXT`,
+        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS phone TEXT`,
+        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS source TEXT`,
+        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS status TEXT`,
+        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS industry TEXT`,
+        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS value NUMERIC`,
+        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS notes TEXT`,
+      ];
+      await Promise.allSettled(schemaFixes);
     } catch (tableErr) {
       console.warn('Table creation warning:', tableErr);
     }
