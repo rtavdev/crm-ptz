@@ -1,13 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { generateSessionId, setSession } from './session-store';
+import type { NeonAuthUser } from './session-store';
 
-interface NeonAuthUser {
-  userId: string;
-  email: string;
-  displayName: string;
-  role: 'ADMIN' | 'USER';
+interface UserRecord {
+  password: string;
+  display: string;
 }
 
-const ACCESS_LIST: Record<string, { password: string; display: string }> = {
+const ACCESS_LIST: Record<string, UserRecord> = {
   "dev":        { password:"3058", display:"Developer"},
   "rohan":      { password: "RTAV",  display: "Rohan" },
   "roshan":     { password: "1410",  display: "Roshan" },
@@ -18,12 +18,6 @@ const ACCESS_LIST: Record<string, { password: string; display: string }> = {
   "lydia":      { password: "RTAV",  display: "Lydia" },
   "akhilesh":   { password: "Akhil1607", display:"Akhilesh"}
 };
-
-const sessions = new Map<string, { user: NeonAuthUser; expiresAt: number }>();
-
-function generateSessionId(): string {
-  return Array.from({ length: 32 }, () => Math.random().toString(36)[2]).join('');
-}
 
 function setSessionCookie(res: VercelResponse, sessionId: string) {
   res.setHeader('Set-Cookie', [
@@ -52,8 +46,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
 
   const sessionId = generateSessionId();
-  sessions.set(sessionId, { user: neonUser, expiresAt: Date.now() + 86400000 });
+  setSession(sessionId, { user: neonUser, expiresAt: Date.now() + 86400000 });
   setSessionCookie(res, sessionId);
 
-  return res.status(200).json({ user: neonUser, session: { id: sessionId } });
+  return res.status(200).json({
+    user: neonUser,
+    session: {
+      id: sessionId,
+      token: sessionId,  // Frontend expects data.session.token
+    },
+  });
 }

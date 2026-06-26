@@ -67,16 +67,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Defensive: add missing columns in case production schema drifts
       await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS industry TEXT`;
-
-      // Ensure unique constraint on companies.name for ON CONFLICT (name) UPSERT to work
-      try {
-        await sql`ALTER TABLE companies ADD CONSTRAINT unique_company_name UNIQUE (name)`;
-      } catch (constraintErr: any) {
-        // Ignore if constraint already exists (duplicate constraint error)
-        if (!constraintErr?.message?.includes('already exists')) {
-          console.warn('Companies unique constraint warning:', constraintErr);
-        }
-      }
     } catch (tableErr) {
       console.warn('Table creation warning:', tableErr);
     }

@@ -135,7 +135,7 @@ dealsRouter.get(
 
     const result = await executeTenantQuery<Deal>(tenantId, text, params);
     const data = result.rows.map(toWebDeal);
-    res.json({ deals: result.rows, data, items: data });
+    res.json(data);
   }),
 );
 
@@ -187,8 +187,6 @@ dealsRouter.post(
       tenantId,
       `INSERT INTO deals (
          tenant_id, lead_id, owner_id, amount, stage,
-         name, company, value, close_date, owner, notes
-       )
          name, company, value, close_date, owner, notes,
          created_by, modified_by
        )

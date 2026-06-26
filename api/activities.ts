@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { neon } from '@neondatabase/serverless';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
@@ -26,9 +27,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           type TEXT NOT NULL,
           title TEXT,
           meta TEXT,
+          note TEXT,
+          "user" TEXT,
+          username TEXT,
+          created_by TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `;
+      // Add missing columns safely
+      await sql`ALTER TABLE activities ADD COLUMN IF NOT EXISTS note TEXT`.catch(() => {});
+      await sql`ALTER TABLE activities ADD COLUMN IF NOT EXISTS "user" TEXT`.catch(() => {});
+      await sql`ALTER TABLE activities ADD COLUMN IF NOT EXISTS username TEXT`.catch(() => {});
+      await sql`ALTER TABLE activities ADD COLUMN IF NOT EXISTS created_by TEXT`.catch(() => {});
     } catch (err) {
       console.warn('Table creation warning:', err);
     }
@@ -46,14 +56,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 3. POST: Create new activity
     if (req.method === 'POST') {
       try {
-        const { id, type, title, meta } = req.body || {};
+        const body = req.body || {};
+        const { id, type, title, meta, note } = body;
+        const user = body.user || body.created_by || null;
+        const username = body.username || null;
+        const created_at = body.created_at || null;
+        
         if (!type) {
           return res.status(400).json({ error: 'type is required.' });
         }
         
         await sql`
-          INSERT INTO activities (id, type, title, meta)
-          VALUES (${id}, ${type}, ${title || null}, ${meta || null})
+          INSERT INTO activities (id, type, title, meta, note, "user", username, created_at)
+          VALUES (${id || crypto.randomUUID()}, ${type}, ${title || null}, ${meta || null}, ${note || null}, ${user}, ${username}, ${created_at || new Date().toISOString()})
         `;
         return res.status(200).json({ success: true });
       } catch (err) {

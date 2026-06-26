@@ -67,7 +67,7 @@ leadsRouter.get(
     text += ' ORDER BY created_at DESC';
 
     const result = await executeTenantQuery<Lead>(tenantId, text, params);
-    res.json({ leads: result.rows, data: result.rows, items: result.rows });
+    res.json(result.rows);
   }),
 );
 

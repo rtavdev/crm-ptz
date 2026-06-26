@@ -6,6 +6,10 @@
     { "source": "/api/contacts/:id", "destination": "/api/contacts" },
     { "source": "/api/companies/:id", "destination": "/api/companies" },
     { "source": "/api/activities/:id", "destination": "/api/activities" },
-    { "source": "/api/quotes/:id", "destination": "/api/quotes" }
+    { "source": "/api/quotes/:id", "destination": "/api/quotes" },
+    { "source": "/api/auth/login", "destination": "/api/auth/login" },
+    { "source": "/api/auth/logout", "destination": "/api/auth/logout" },
+    { "source": "/api/auth/session", "destination": "/api/auth/session" },
+    { "source": "/api/send-email", "destination": "/api/send-email" }
   ]
 }

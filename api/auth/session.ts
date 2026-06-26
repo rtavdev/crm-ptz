@@ -1,30 +1,33 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-interface NeonAuthUser {
-  userId: string;
-  email: string;
-  displayName: string;
-  role: 'ADMIN' | 'USER';
-}
-
-const sessions = new Map<string, { user: NeonAuthUser; expiresAt: number }>();
-
-function getSessionId(req: VercelRequest): string | null {
-  const cookie = req.headers.cookie || '';
-  const match = cookie.match(/neon_auth_session=([^;]+)/);
-  return match ? match[1] : null;
-}
+import { getSession, getSessionIdFromCookie } from './session-store';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const sessionId = getSessionId(req);
-  if (!sessionId || !sessions.has(sessionId)) {
+  const sessionId = getSessionIdFromCookie(req);
+  if (!sessionId) {
     return res.status(401).json({ error: 'No session' });
   }
 
-  const session = sessions.get(sessionId)!;
-  return res.status(200).json({ user: session.user, session: { id: sessionId } });
+  const session = getSession(sessionId);
+  if (!session) {
+    return res.status(401).json({ error: 'Session expired' });
+  }
+
+  // Match the frontend's expected user shape:
+  //   sessionData.user.id, sessionData.user.name, sessionData.user.email, sessionData.user.role
+  return res.status(200).json({
+    user: {
+      id: session.user.userId,
+      name: session.user.displayName,
+      email: session.user.email,
+      role: session.user.role,
+    },
+    session: {
+      id: sessionId,
+      token: sessionId,
+    },
+  });
 }
