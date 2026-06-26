@@ -1,6 +1,5 @@
 import { neon } from '@neondatabase/serverless';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import crypto from 'crypto';
 
 function toNullable(v: any) {
   if (v === undefined || v === null) return null;
@@ -15,7 +14,6 @@ function toNullableNumeric(v: any) {
   return isNaN(parsed) ? null : parsed;
 }
 
-// Mock data for demo mode when database is not available
 const MOCK_LEADS = [
   { id: '1', first_name: 'Rahul', last_name: 'Sharma', company: 'TechCorp India', email: 'rahul@techcorp.in', phone: '+91 98765 43210', source: 'Website', status: 'Hot', industry: 'Technology', value: 250000, notes: 'Interested in conference room AV', created_at: '2026-01-15T10:30:00Z' },
   { id: '2', first_name: 'Priya', last_name: 'Patel', company: 'MediaHouse Pvt Ltd', email: 'priya@mediahouse.in', phone: '+91 87654 32109', source: 'Referral', status: 'Qualified', industry: 'Media', value: 500000, notes: 'LED wall project', created_at: '2026-01-20T14:00:00Z' },
@@ -29,25 +27,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing required ID for this operation" });
   }
 
-  const dbUrl = process.env.DATABASE_URL;
-  
-  if (!dbUrl) {
-    if (req.method === 'GET') {
-      return res.status(200).json(MOCK_LEADS);
-    }
-    return res.status(200).json({ success: true });
-  }
-  
-  const sql = neon(dbUrl);
+  // AUDIT TRAIL: Extract active user for created_by / modified_by
+  const activeUser = (req.headers['x-user-username'] as string) || req.body?.activeUsername || 'System';
 
   try {
+    const dbUrl = process.env.DATABASE_URL;
+    
+    if (!dbUrl) {
+      if (req.method === 'GET') {
+        return res.status(200).json(MOCK_LEADS);
+      }
+      return res.status(200).json({ success: true });
+    }
+    
+    const sql = neon(dbUrl);
+
     // GET: Fetch all leads
     if (req.method === 'GET') {
       try {
         const data = await sql`SELECT * FROM leads ORDER BY created_at DESC`;
         return res.status(200).json(data || []);
       } catch (err) {
-        console.error('GET error:', err);
+        console.error("CRITICAL API ERROR (LEADS GET):", err);
         return res.status(200).json([]);
       }
     }
@@ -56,28 +57,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'POST') {
       try {
         const body = req.body || {};
-        const { first_name, last_name, email, phone, source, status, industry, value, notes } = body;
+        const { id: bodyId, first_name, last_name, email, phone, source, status, industry, value, notes } = body;
         const company = body.company ?? body.companyName ?? body.name;
+        
         if (!email) {
           return res.status(400).json({ error: 'email is required.' });
         }
 
-        const finalId = (id && typeof id === 'string' && id.trim() !== '') ? id.trim() : crypto.randomUUID();
+        // Universally supported safe ID fallback
+        const safeId = id || bodyId || Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 
         await sql`
-          INSERT INTO leads (id, first_name, last_name, company, email, phone, source, status, industry, value, notes)
+          INSERT INTO leads (id, first_name, last_name, company, email, phone, source, status, industry, value, notes, created_by, modified_by)
           VALUES (
-            ${finalId},
+            ${safeId},
             ${toNullable(first_name)},
             ${toNullable(last_name)},
             ${toNullable(company)},
             ${email},
             ${toNullable(phone)},
-            ${toNullable(source)},
-            ${toNullable(status)},
+            ${toNullable(source) || 'Other'},
+            ${toNullable(status) || 'New'},
             ${toNullable(industry)},
             ${toNullableNumeric(value)},
-            ${toNullable(notes)}
+            ${toNullable(notes)},
+            ${activeUser},
+            ${activeUser}
           )
           ON CONFLICT (id) DO UPDATE SET
             first_name = EXCLUDED.first_name,
@@ -89,12 +94,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status     = EXCLUDED.status,
             industry   = EXCLUDED.industry,
             value      = EXCLUDED.value,
-            notes      = EXCLUDED.notes
+            notes      = EXCLUDED.notes,
+            modified_by = ${activeUser}
         `;
 
-        return res.status(200).json({ success: true, id: finalId });
+        return res.status(200).json({ success: true, id: safeId });
       } catch (err) {
-        console.error('POST error:', err);
+        console.error("CRITICAL API ERROR (LEADS POST):", err);
         return res.status(500).json({ error: err instanceof Error ? err.message : 'POST failed' });
       }
     }
@@ -129,13 +135,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               status     = ${toNullable(status)},
               industry   = ${toNullable(industry)},
               value      = ${toNullableNumeric(value)},
-              notes      = ${toNullable(notes)}
+              notes      = ${toNullable(notes)},
+              modified_by = ${activeUser}
           WHERE id = ${id}
         `;
 
         return res.status(200).json({ success: true });
       } catch (err) {
-        console.error('PUT error:', err);
+        console.error("CRITICAL API ERROR (LEADS PUT):", err);
         return res.status(500).json({ error: err instanceof Error ? err.message : 'PUT failed' });
       }
     }
@@ -149,13 +156,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await sql`DELETE FROM leads WHERE id = ${id}`;
         return res.status(200).json({ success: true });
       } catch (err) {
-        console.error('DELETE error:', err);
+        console.error("CRITICAL API ERROR (LEADS DELETE):", err);
         return res.status(500).json({ error: err instanceof Error ? err.message : 'DELETE failed' });
       }
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
+    console.error("CRITICAL API ERROR (LEADS UNCAUGHT):", error);
     return res.status(500).json({ error: error.message || 'Unknown database error' });
   }
 }
