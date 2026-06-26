@@ -8,7 +8,6 @@ function toNullable(v: any) {
   return v;
 }
 
-// Foolproof numeric sanitizer protecting your NUMERIC database column
 function toNullableNumeric(v: any) {
   if (v === undefined || v === null) return null;
   if (typeof v === 'string' && v.trim() === '') return null;
@@ -24,17 +23,14 @@ const MOCK_LEADS = [
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Extract ID with priority: Path (from rewrite) -> Query -> Body
   const id = req.query.id || req.body?.id;
 
-  // IMPORTANT: For PUT and DELETE, ensure we have an ID
   if ((req.method === 'PUT' || req.method === 'DELETE') && !id) {
     return res.status(400).json({ error: "Missing required ID for this operation" });
   }
 
   const dbUrl = process.env.DATABASE_URL;
   
-  // If no database, return mock data for GET requests
   if (!dbUrl) {
     if (req.method === 'GET') {
       return res.status(200).json(MOCK_LEADS);
@@ -45,45 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const sql = neon(dbUrl);
 
   try {
-
-    // 1. Ensure table exists with a native UUID fallback generator
-    try {
-      await sql`
-        CREATE TABLE IF NOT EXISTS leads (
-          id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
-          first_name TEXT,
-          last_name TEXT,
-          company TEXT,
-          email TEXT,
-          phone TEXT,
-          source TEXT,
-          status TEXT,
-          industry TEXT,
-          value NUMERIC,
-          notes TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
-
-      // Defensive: add all missing columns in case leads table already has a different schema
-      const schemaFixes = [
-        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS first_name TEXT`,
-        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_name TEXT`,
-        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS company TEXT`,
-        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS email TEXT`,
-        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS phone TEXT`,
-        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS source TEXT`,
-        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS status TEXT`,
-        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS industry TEXT`,
-        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS value NUMERIC`,
-        sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS notes TEXT`,
-      ];
-      await Promise.allSettled(schemaFixes);
-    } catch (tableErr) {
-      console.warn('Table creation warning:', tableErr);
-    }
-
-    // 2. GET: Fetch all leads
+    // GET: Fetch all leads
     if (req.method === 'GET') {
       try {
         const data = await sql`SELECT * FROM leads ORDER BY created_at DESC`;
@@ -94,17 +52,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 3. POST: Create or Upsert new lead
+    // POST: Create or Upsert new lead
     if (req.method === 'POST') {
       try {
         const body = req.body || {};
-        const { id, first_name, last_name, email, phone, source, status, industry, value, notes } = body;
+        const { first_name, last_name, email, phone, source, status, industry, value, notes } = body;
         const company = body.company ?? body.companyName ?? body.name;
         if (!email) {
           return res.status(400).json({ error: 'email is required.' });
         }
 
-        // FOOLPROOF GUARD: If the client didn't supply an ID string, create a fresh one immediately
         const finalId = (id && typeof id === 'string' && id.trim() !== '') ? id.trim() : crypto.randomUUID();
 
         await sql`
@@ -135,43 +92,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             notes      = EXCLUDED.notes
         `;
 
-        // --- CRUD SYNC: Sync lead data to companies and contacts tables ---
-        try {
-          // Split the lead's contact name into first_name and last_name for sync
-          const syncFirstName = toNullable(first_name);
-          const syncLastName  = toNullable(last_name);
-          const syncCompany   = toNullable(company);
-          const syncEmail     = email;
-          const syncPhone     = toNullable(phone);
-
-          // Sync to companies table (use company name as the company record name)
-          if (syncCompany) {
-            const companyId = crypto.randomUUID();
-            await sql`
-                INSERT INTO companies (id, name, first_name, last_name, phone, email)
-                VALUES (${companyId}, ${syncCompany}, ${syncFirstName}, ${syncLastName}, ${syncPhone}, ${syncEmail})
-                ON CONFLICT (name) 
-                  DO UPDATE SET 
-                    email      = EXCLUDED.email,
-                    phone      = EXCLUDED.phone,
-                    first_name = EXCLUDED.first_name,
-                    last_name  = EXCLUDED.last_name
-                `;
-          }
-
-          // Sync to contacts table
-          if (syncFirstName || syncLastName) {
-            const contactId = crypto.randomUUID();
-            await sql`
-              INSERT INTO contacts (id, first_name, last_name, company, email, phone)
-              VALUES (${contactId}, ${syncFirstName}, ${syncLastName}, ${syncCompany}, ${syncEmail}, ${syncPhone})
-              ON CONFLICT (email) DO NOTHING
-            `;
-          }
-        } catch (syncErr) {
-          console.error('CRUD sync error (non-fatal):', syncErr);
-        }
-
         return res.status(200).json({ success: true, id: finalId });
       } catch (err) {
         console.error('POST error:', err);
@@ -179,14 +99,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 4. PUT: Update lead
+    // PUT: Update lead
     if (req.method === 'PUT') {
       try {
         if (!id) {
           return res.status(400).json({ error: "Missing required ID for this operation" });
         }
 
-        // Normalize company name: frontend may send 'company', 'companyName', or 'name'
         const body = req.body || {};
         const company   = body.company ?? body.companyName ?? body.name;
         const first_name = body.first_name;
@@ -214,45 +133,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           WHERE id = ${id}
         `;
 
-        // --- CRUD SYNC: Upsert lead data to companies and contacts tables ---
-        try {
-          const syncFirstName = toNullable(first_name);
-          const syncLastName  = toNullable(last_name);
-          const syncCompany   = toNullable(company);
-          const syncEmail     = toNullable(email);
-          const syncPhone     = toNullable(phone);
-
-          // Upsert to companies table — update existing company record on name conflict
-          if (syncCompany) {
-            await sql`
-              INSERT INTO companies (id, name, first_name, last_name, phone, email)
-              VALUES (${crypto.randomUUID()}, ${syncCompany}, ${syncFirstName}, ${syncLastName}, ${syncPhone}, ${syncEmail})
-              ON CONFLICT (name) 
-              DO UPDATE SET 
-                email      = EXCLUDED.email,
-                phone      = EXCLUDED.phone,
-                first_name = EXCLUDED.first_name,
-                last_name  = EXCLUDED.last_name
-            `;
-          }
-
-          // Upsert to contacts table — update existing contact record on email conflict
-          if (syncEmail) {
-            await sql`
-              INSERT INTO contacts (id, first_name, last_name, company, email, phone)
-              VALUES (${crypto.randomUUID()}, ${syncFirstName}, ${syncLastName}, ${syncCompany}, ${syncEmail}, ${syncPhone})
-              ON CONFLICT (email) 
-              DO UPDATE SET 
-                first_name = EXCLUDED.first_name,
-                last_name  = EXCLUDED.last_name,
-                company    = EXCLUDED.company,
-                phone      = EXCLUDED.phone
-            `;
-          }
-        } catch (syncErr) {
-          console.error('CRUD sync error (non-fatal):', syncErr);
-        }
-
         return res.status(200).json({ success: true });
       } catch (err) {
         console.error('PUT error:', err);
@@ -260,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 5. DELETE: Remove lead
+    // DELETE: Remove lead
     if (req.method === 'DELETE') {
       try {
         if (!id) {

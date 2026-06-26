@@ -15,10 +15,8 @@ const MOCK_CONTACTS = [
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Extract ID with priority: Path (from rewrite) -> Query -> Body
   const id = req.query.id || req.body?.id;
 
-  // IMPORTANT: For PUT and DELETE, ensure we have an ID
   if ((req.method === 'PUT' || req.method === 'DELETE') && !id) {
     return res.status(400).json({ error: "Missing required ID for this operation" });
   }
@@ -26,7 +24,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const dbUrl = process.env.DATABASE_URL;
     
-    // If no database, return mock data for GET requests
     if (!dbUrl) {
       if (req.method === 'GET') {
         return res.status(200).json(MOCK_CONTACTS);
@@ -36,26 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const sql = neon(dbUrl);
 
-    // 1. Ensure table exists
-    try {
-      await sql`
-        CREATE TABLE IF NOT EXISTS contacts (
-          id TEXT PRIMARY KEY,
-          first_name TEXT NOT NULL,
-          last_name TEXT NOT NULL,
-          company TEXT,
-          email TEXT NOT NULL,
-          phone TEXT,
-          title TEXT,
-          status TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
-    } catch (err) {
-      console.warn('Table creation warning:', err);
-    }
-
-    // 2. GET: Fetch all contacts
+    // GET: Fetch all contacts
     if (req.method === 'GET') {
       try {
         const data = await sql`SELECT * FROM contacts ORDER BY created_at DESC`;
@@ -66,14 +44,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 3. POST: Create new contact
+    // POST: Create new contact
     if (req.method === 'POST') {
       try {
         const body = req.body || {};
         
-        let { id: bodyId, first_name, last_name, company, email, phone, title, status, contact_name, name } = body;
+        let { first_name, last_name, company, email, phone, title, status, contact_name, name } = body;
         
-        // FIX 1: Smarter Name Parsing
         let finalFirstName = first_name;
         let finalLastName = last_name;
 
@@ -86,18 +63,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
         
-        // Only require at least a first name
         if (!finalFirstName) {
           return res.status(400).json({ error: 'A name is required to save a contact.' });
         }
         
-        // FIX 2: Prevent Database Crashes on empty required fields
-        // The DB requires last_name and email to be NOT NULL, so we pass an empty string instead of crashing
         finalLastName = finalLastName || "";
         const finalEmail = email || "";
 
-        // FIX 3: Safe ID Generation (Removed the crashing 'crypto' import)
-        const safeId = id || bodyId || Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+        const safeId = id || Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
         
         await sql`
           INSERT INTO contacts (id, first_name, last_name, company, email, phone, title, status)
@@ -110,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 4. PUT: Update contact
+    // PUT: Update contact
     if (req.method === 'PUT') {
       try {
         if (!id) {
@@ -132,7 +105,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
-        // Fetch current record to safely update only provided fields
         const existingData = await sql`SELECT * FROM contacts WHERE id = ${id}`;
         if (!existingData || existingData.length === 0) return res.status(404).json({ error: 'Not found' });
 
@@ -155,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 5. DELETE: Remove contact
+    // DELETE: Remove contact
     if (req.method === 'DELETE') {
       try {
         if (!id) {

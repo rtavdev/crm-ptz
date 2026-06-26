@@ -3,10 +3,8 @@ import { neon } from '@neondatabase/serverless';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Extract ID with priority: Path (from rewrite) -> Query -> Body
   const id = req.query.id || req.body?.id;
 
-  // IMPORTANT: For PUT and DELETE, ensure we have an ID
   if ((req.method === 'PUT' || req.method === 'DELETE') && !id) {
     return res.status(400).json({ error: "Missing required ID for this operation" });
   }
@@ -19,31 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const sql = neon(dbUrl);
 
-    // 1. Ensure table exists
-    try {
-      await sql`
-        CREATE TABLE IF NOT EXISTS activities (
-          id TEXT PRIMARY KEY,
-          type TEXT NOT NULL,
-          title TEXT,
-          meta TEXT,
-          note TEXT,
-          "user" TEXT,
-          username TEXT,
-          created_by TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
-      // Add missing columns safely
-      await sql`ALTER TABLE activities ADD COLUMN IF NOT EXISTS note TEXT`.catch(() => {});
-      await sql`ALTER TABLE activities ADD COLUMN IF NOT EXISTS "user" TEXT`.catch(() => {});
-      await sql`ALTER TABLE activities ADD COLUMN IF NOT EXISTS username TEXT`.catch(() => {});
-      await sql`ALTER TABLE activities ADD COLUMN IF NOT EXISTS created_by TEXT`.catch(() => {});
-    } catch (err) {
-      console.warn('Table creation warning:', err);
-    }
-
-    // 2. GET: Fetch all activities
+    // GET: Fetch all activities
     if (req.method === 'GET') {
       try {
         const data = await sql`SELECT * FROM activities ORDER BY created_at DESC`;
@@ -53,11 +27,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 3. POST: Create new activity
+    // POST: Create new activity
     if (req.method === 'POST') {
       try {
         const body = req.body || {};
-        const { id, type, title, meta, note } = body;
+        const { type, title, meta, note } = body;
         const user = body.user || body.created_by || null;
         const username = body.username || null;
         const created_at = body.created_at || null;
@@ -76,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 4. PUT: Update activity
+    // PUT: Update activity
     if (req.method === 'PUT') {
       try {
         const { type, title, meta } = req.body || {};
@@ -92,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 5. DELETE: Remove activity
+    // DELETE: Remove activity
     if (req.method === 'DELETE') {
       try {
         await sql`DELETE FROM activities WHERE id = ${id}`;

@@ -16,28 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const sql = neon(dbUrl);
 
-    // 1. Ensure table exists (with email column)
-    try {
-      await sql`
-        CREATE TABLE IF NOT EXISTS quotes (
-          id TEXT PRIMARY KEY,
-          number TEXT NOT NULL,
-          customer TEXT NOT NULL,
-          email TEXT,
-          amount NUMERIC,
-          status TEXT,
-          description TEXT,
-          valid_until TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
-      // Migrate existing tables that don't have the email column yet
-      await sql`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS email TEXT;`;
-    } catch (err) {
-      console.warn('Table creation warning:', err);
-    }
-
-    // 2. GET
+    // GET
     if (req.method === 'GET') {
       try {
         const data = await sql`SELECT * FROM quotes ORDER BY created_at DESC`;
@@ -47,10 +26,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 3. POST
+    // POST
     if (req.method === 'POST') {
       try {
-        const { id, number, customer, email, amount, status, description, valid_until } = req.body || {};
+        const { number, customer, email, amount, status, description, valid_until } = req.body || {};
         if (!number || !customer) {
           return res.status(400).json({ error: 'number and customer are required.' });
         }
@@ -65,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 4. PUT
+    // PUT
     if (req.method === 'PUT') {
       try {
         const { number, customer, email, amount, status, description, valid_until } = req.body || {};
@@ -83,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 5. DELETE
+    // DELETE
     if (req.method === 'DELETE') {
       try {
         await sql`DELETE FROM quotes WHERE id = ${id}`;
