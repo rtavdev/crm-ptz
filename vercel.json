@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    { "source": "/api/leads/:id", "destination": "/api/leads" },
+    { "source": "/api/deals/:id", "destination": "/api/deals" },
+    { "source": "/api/tasks/:id", "destination": "/api/tasks" },
+    { "source": "/api/contacts/:id", "destination": "/api/contacts" },
+    { "source": "/api/companies/:id", "destination": "/api/companies" },
+    { "source": "/api/activities/:id", "destination": "/api/activities" },
+    { "source": "/api/quotes/:id", "destination": "/api/quotes" }
+  ]
+}
