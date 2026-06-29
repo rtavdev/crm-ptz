@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSessionIdFromCookie, deleteSession } from './session-store';
+import { getSessionIdFromCookie, deleteSession } from '../../src/utils/session-store';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
