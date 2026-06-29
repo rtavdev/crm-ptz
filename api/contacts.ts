@@ -64,17 +64,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         if (!finalFirstName) {
-          return res.status(400).json({ error: 'A name is required to save a contact.' });
+          return res.status(400).json({ error: 'first_name is required.' });
         }
         
-        finalLastName = finalLastName || "";
-        const finalEmail = email || "";
+        const safeLastName = finalLastName || "";
+        const safeEmail = email || "";
 
         const safeId = id || Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
         
         await sql`
           INSERT INTO contacts (id, first_name, last_name, company, email, phone, title, status)
-          VALUES (${safeId}, ${finalFirstName}, ${finalLastName}, ${toNullable(company)}, ${finalEmail}, ${toNullable(phone)}, ${toNullable(title)}, ${toNullable(status) || 'active'})
+          VALUES (${safeId}, ${finalFirstName}, ${safeLastName}, ${toNullable(company)}, ${safeEmail}, ${toNullable(phone)}, ${toNullable(title)}, ${toNullable(status) || 'active'})
         `;
         return res.status(200).json({ success: true, id: safeId });
       } catch (err: any) {
@@ -105,6 +105,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
+        const safeLastName = finalLastName || "";
+        const safeEmail = email || "";
+
         const existingData = await sql`SELECT * FROM contacts WHERE id = ${id}`;
         if (!existingData || existingData.length === 0) return res.status(404).json({ error: 'Not found' });
 
@@ -112,9 +115,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           UPDATE contacts 
           SET 
             first_name = ${finalFirstName ?? existingData[0].first_name}, 
-            last_name = ${finalLastName ?? existingData[0].last_name}, 
+            last_name = ${safeLastName ?? existingData[0].last_name}, 
             company = ${company !== undefined ? toNullable(company) : existingData[0].company}, 
-            email = ${email ?? existingData[0].email}, 
+            email = ${safeEmail ?? existingData[0].email}, 
             phone = ${phone !== undefined ? toNullable(phone) : existingData[0].phone}, 
             title = ${title !== undefined ? toNullable(title) : existingData[0].title}, 
             status = ${status !== undefined ? toNullable(status) : existingData[0].status}
