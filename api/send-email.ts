@@ -19,10 +19,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const port = Number(process.env.SMTP_PORT) || 587;
 
   if (!host || !user || !pass) {
-    console.error('[send-email] SMTP env vars missing');
-    return res.status(500).json({ error: 'SMTP not configured on server.' });
-  }
-
+  console.error('[send-email] SMTP env vars missing:', { host: !!host, user: !!user, pass: !!pass });
+  return res.status(500).json({ error: 'SMTP not configured on server. Check environment variables.' });
+}
   try {
     const transporter = nodemailer.createTransport({
       host,
