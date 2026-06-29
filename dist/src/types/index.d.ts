@@ -1,0 +1,81 @@
+export type Role = 'ADMIN' | 'MANAGER' | 'SALES_REP';
+export declare const ROLES: readonly Role[];
+export type LeadStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'LOST' | 'WON';
+export type DealStage = 'PROSPECTING' | 'NEGOTIATION' | 'PROPOSAL' | 'CLOSED_WON' | 'CLOSED_LOST';
+/** Authenticated principal extracted from a validated JWT. */
+export interface AuthUser {
+    userId: string;
+    tenantId: string;
+    role: Role;
+}
+/**
+ * Access scope derived from the principal's role. Injected by the RBAC
+ * middleware onto `req.accessScope` and consumed by the route handlers to
+ * decide whether to constrain queries to records owned by the caller.
+ */
+export interface AccessScope {
+    /** True when the role may read every record within its tenant. */
+    viewAll: boolean;
+    /** True when the role may only access records where owner_id === userId. */
+    restrictToOwner: boolean;
+}
+export interface Tenant {
+    id: string;
+    company_name: string;
+    is_active: boolean;
+    created_at: Date;
+}
+export interface User {
+    id: string;
+    tenant_id: string;
+    email: string;
+    password_hash: string;
+    role: Role;
+    created_at: Date;
+}
+/** A `User` row safe to return over the wire (no password hash). */
+export type SafeUser = Omit<User, 'password_hash'>;
+export interface Lead {
+    id: string;
+    tenant_id: string;
+    owner_id: string;
+    first_name: string;
+    last_name: string;
+    status: LeadStatus;
+    company: string | null;
+    email: string | null;
+    phone: string | null;
+    source: string | null;
+    notes: string | null;
+    created_at: Date;
+}
+export interface Deal {
+    id: string;
+    tenant_id: string;
+    lead_id: string | null;
+    owner_id: string;
+    amount: string;
+    stage: DealStage;
+    name: string | null;
+    company: string | null;
+    value: string | null;
+    close_date: Date | null;
+    owner: string | null;
+    notes: string | null;
+    created_at: Date;
+}
+export interface Opportunity {
+    id: string;
+    tenant_id: string;
+    owner_id: string;
+    name: string;
+    account_name: string;
+    stage: string;
+    estimated_revenue: string;
+    created_at: Date;
+}
+export interface JwtPayloadShape {
+    userId: string;
+    tenantId: string;
+    role: Role;
+}

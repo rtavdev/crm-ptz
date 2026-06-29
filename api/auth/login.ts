@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateSessionId, setSession } from './session-store';
-import type { NeonAuthUser } from './session-store';
+import { generateSessionId, setSession } from '../../src/utils/session-store';
+import type { NeonAuthUser } from '../../src/utils/session-store';
 
 interface UserRecord {
   password: string;
