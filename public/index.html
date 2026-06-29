@@ -1956,7 +1956,7 @@ const OWNER_ID  = "11111111-1111-1111-1111-111111111111";
 
 
 /* ============================================================
-   EMAIL SENDER — sends email via Hostinger SMTP as sales@rtav.in
+   EMAIL SENDER — sends email via Hostinger SMTP as sales@ptzoptics.in
    (server-side function at /api/send-email, see Vercel project)
 ============================================================ */
 const GmailSender = (() => {
@@ -1975,7 +1975,7 @@ const GmailSender = (() => {
       if (!resp.ok) {
         throw new Error(data.error || `HTTP ${resp.status}`);
       }
-      toast("Email sent from sales@rtav.in ✅", "success");
+   toast("Email sent from sales@ptzoptics.in ✅", "success");
       return data;
     } catch (e) {
       toast("Send failed: " + e.message, "error");
@@ -3420,7 +3420,7 @@ const App = {
         App._gmailData["quote-" + qt.id] = {
           to: emailAddr,
           subject: `Quotation ${qt.number || ""} from RTAV`,
-          body: `Dear ${sanitize(qt.customer || "Sir/Madam")},\n\nThank you for your interest in RTAV's Audio-Visual solutions.\n\nPlease find below the details of your quotation:\n\n  Quote Number : ${qt.number || "—"}\n  Customer     : ${qt.customer || "—"}\n  Amount       : ${fmt$(qt.amount)}\n  Status       : ${qt.status || "Draft"}\n  Description  : ${qt.description || "—"}\n\nThis quotation is valid for 30 days from the date of issue. Should you have any questions or require further clarification, please do not hesitate to reach out to us.\n\nWe look forward to partnering with you.\n\nWarm regards,\nRTAV Sales Team\nsales@rtav.in | www.rtav.in`
+          body: `Dear ${sanitize(qt.customer || "Sir/Madam")},\n\nThank you for your interest in RTAV's Audio-Visual solutions.\n\nPlease find below the details of your quotation:\n\n  Quote Number : ${qt.number || "—"}\n  Customer     : ${qt.customer || "—"}\n  Amount       : ${fmt$(qt.amount)}\n  Status       : ${qt.status || "Draft"}\n  Description  : ${qt.description || "—"}\n\nThis quotation is valid for 30 days from the date of issue. Should you have any questions or require further clarification, please do not hesitate to reach out to us.\n\nWe look forward to partnering with you.\n\nWarm regards,\n PTZ Optics Sales Team\nsales@ptzoptics.in | www.rtav.in`
         };
       }
       return `
