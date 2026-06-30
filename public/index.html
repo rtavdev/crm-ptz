@@ -2701,7 +2701,7 @@ const App = {
       const emailDisplay = sanitize(emailAddr || "—");
       if (emailAddr) {
         const subj = "Following Up – " + (l.company || l.Company || "");
-        const body = "Hi " + (l.first_name || "").trim() + ",\n\nI hope you're doing well! I wanted to follow up on our previous conversation regarding your AV requirements.\n\nWe at RTAV would love to help bring your vision to life. Could we schedule a quick call this week to discuss next steps?\n\nLooking forward to hearing from you.\n\nWarm regards,\nRTAV Team";
+        const body = "Hi " + (l.first_name || "").trim() + ",\n\nI hope you're doing well! I wanted to follow up on our previous conversation regarding your Camera requirements.\n\nWe at PTZOptics would love to help bring your vision to life. Could we schedule a quick call this week to discuss next steps?\n\nLooking forward to hearing from you.\n\nWarm regards,\nPTZOptics Team";
         App._gmailData = App._gmailData || {};
         App._gmailData[l.id] = { to: emailAddr, subject: subj, body };
       }
@@ -3419,8 +3419,8 @@ const App = {
         App._gmailData = App._gmailData || {};
         App._gmailData["quote-" + qt.id] = {
           to: emailAddr,
-          subject: `Quotation ${qt.number || ""} from RTAV`,
-          body: `Dear ${sanitize(qt.customer || "Sir/Madam")},\n\nThank you for your interest in RTAV's Audio-Visual solutions.\n\nPlease find below the details of your quotation:\n\n  Quote Number : ${qt.number || "—"}\n  Customer     : ${qt.customer || "—"}\n  Amount       : ${fmt$(qt.amount)}\n  Status       : ${qt.status || "Draft"}\n  Description  : ${qt.description || "—"}\n\nThis quotation is valid for 30 days from the date of issue. Should you have any questions or require further clarification, please do not hesitate to reach out to us.\n\nWe look forward to partnering with you.\n\nWarm regards,\n PTZ Optics Sales Team\nsales@ptzoptics.in | www.rtav.in`
+          subject: `Quotation ${qt.number || ""} from PTZOptics`,
+          body: `Dear ${sanitize(qt.customer || "Sir/Madam")},\n\nThank you for your interest in PTZOptics's Camera solutions.\n\nPlease find below the details of your quotation:\n\n  Quote Number : ${qt.number || "—"}\n  Customer     : ${qt.customer || "—"}\n  Amount       : ${fmt$(qt.amount)}\n  Status       : ${qt.status || "Draft"}\n  Description  : ${qt.description || "—"}\n\nThis quotation is valid for 30 days from the date of issue. Should you have any questions or require further clarification, please do not hesitate to reach out to us.\n\nWe look forward to partnering with you.\n\nWarm regards,\n PTZ Optics Sales Team\nsales@ptzoptics.in | www.ptzoptics.in`
         };
       }
       return `
